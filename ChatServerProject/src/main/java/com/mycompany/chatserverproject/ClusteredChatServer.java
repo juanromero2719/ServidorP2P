@@ -410,18 +410,7 @@ public class ClusteredChatServer extends ChatServer {
         syncUsersWithPeer(ph);
         ph.sendPeerMessage("PEER_MSG:" + UUID.randomUUID().toString() + ":" + serverId + ":SERVER_JOIN:" + serverId);
     }
-
-//    public void afterHello(PeerHandler ph) {
-//        registerPeer(ph.toString(), ph);
-//        sendSnapshotToPeer(ph);
-//    }
-    
-//    public void connectToPeer(String host,int port) {
-//        PeerInfo info = new PeerInfo(host, port);
-//        if (activePeers.containsKey(info.toString())) return;
-//        tryConnectSinglePeer(info);   // extraído de tryConnectToPeers()
-//    }
-    
+  
     public void connectToPeer(String host, int port) {
         tryConnectSinglePeer(new PeerInfo(host, port));
     }
@@ -433,5 +422,9 @@ public class ClusteredChatServer extends ChatServer {
         } else {
             ph.close();                // método que cierra socket y cleanup
         }
+    }
+    
+    public String getServerId() {
+        return serverId;
     }
 }

@@ -55,6 +55,7 @@ public class ServerGUI implements ServerUI {
         infoPanel.add(new JLabel("IP: " + ip));
         infoPanel.add(new JLabel("|  Puerto Clientes: " + clientPort));
         infoPanel.add(new JLabel("|  Puerto Servidores: " + peerPort));
+        infoPanel.add(new JLabel("|  Nombre: " + ((ClusteredChatServer) server).getServerId()));
 
         // Combina toolbar e infoPanel en un solo panel superior
         JPanel topPanel = new JPanel(new BorderLayout());

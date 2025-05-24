@@ -15,10 +15,11 @@ public class AppServerLauncher {
             int defClientPort = Integer.parseInt(cfg.getProperty("port"));
             int defPeerPort   = Integer.parseInt(cfg.getProperty("peer_port"));
             int maxCon        = Integer.parseInt(cfg.getProperty("max_conexiones"));
-            String serverId   = cfg.getProperty("server_id");
-
+            
             ServerConfigDialog dlg = new ServerConfigDialog(defClientPort, defPeerPort);
             if (!dlg.isAccepted()) return;
+            
+            String serverName = dlg.getServerName();
             
             String localIp = InetAddress.getLocalHost().getHostAddress();
 
@@ -31,7 +32,8 @@ public class AppServerLauncher {
             /* Servidor (sin auto-conexión a peers) */
             ClusteredChatServer server = new ClusteredChatServer(
                     dlg.getClientPort(), maxCon, db, null,
-                    serverId, dlg.getPeerPort(), Collections.emptyList());
+                    serverName,
+                    dlg.getPeerPort(), Collections.emptyList());
 
             ServerUI ui = new ServerGUI(server, localIp, dlg.getClientPort(), dlg.getPeerPort());
             server.setUI(ui);

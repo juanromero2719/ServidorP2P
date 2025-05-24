@@ -6,6 +6,8 @@ import java.net.InetAddress;
 
 /** Diálogo para elegir puertos antes de arrancar el servidor. */
 class ServerConfigDialog extends JDialog {
+    
+    private final JTextField nameField;
     private final JTextField ipField;
     private final JTextField clientPortField;
     private final JTextField peerPortField;
@@ -16,6 +18,7 @@ class ServerConfigDialog extends JDialog {
         String localIp = "0.0.0.0";
         try { localIp = InetAddress.getLocalHost().getHostAddress(); } catch (Exception ignored) {}
 
+        nameField = new JTextField("ServerA", 12);
         ipField = new JTextField(localIp);
         ipField.setEditable(false);
         clientPortField = new JTextField(String.valueOf(defaultClient));
@@ -26,7 +29,10 @@ class ServerConfigDialog extends JDialog {
     }
 
     private void buildUI() {
-        JPanel form = new JPanel(new GridLayout(3, 2, 5, 5));
+        JPanel form = new JPanel(new GridLayout(4, 2, 5, 5));
+        
+        form.add(new JLabel("Nombre del Servidor:"));           // ← NUEVO
+        form.add(nameField); 
         form.add(new JLabel("IP del Servidor:"));
         form.add(ipField);
         form.add(new JLabel("Puerto para Clientes:"));
@@ -67,6 +73,7 @@ class ServerConfigDialog extends JDialog {
     }
 
     boolean isAccepted()           { return accepted; }
+    String  getServerName() { return nameField.getText().trim(); }
     int     getClientPort()        { return Integer.parseInt(clientPortField.getText().trim()); }
     int     getPeerPort()          { return Integer.parseInt(peerPortField.getText().trim()); }
 }
