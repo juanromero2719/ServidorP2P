@@ -273,11 +273,19 @@ public class ClusteredChatServer extends ChatServer {
                 if (cc.length == 2) super.createChannel(cc[0], cc[1]);
                 break;
             case "USER_SNAPSHOT":
-                if (!payload.equals("")) {
-                    for (String u : payload.split(",")) {
-                        remoteUsers.add(u + "@" + src);
-                    }
+                Set<String> snapshot = payload.isEmpty()
+                    ? Collections.emptySet()
+                    : new HashSet<>(Arrays.asList(payload.split(",")));
+
+                super.log("← USER_SNAPSHOT recibido de " + src + " : "
+                          + (snapshot.isEmpty() ? "(vacío)" : String.join(",", snapshot)));
+
+                // Sustituye cualquier listado anterior proveniente de ese servidor
+                remoteUsers.removeIf(u -> u.endsWith("@" + src));
+                for (String u : snapshot) {
+                    remoteUsers.add(u + "@" + src);
                 }
+
                 ui.updateOnlineUsers(getAllUsers());
                 sendOnlineUsersToAll();
                 break;
@@ -398,6 +406,10 @@ public class ClusteredChatServer extends ChatServer {
 
     private void sendSnapshotToPeer(PeerHandler ph) {
         String users = String.join(",", getClients().keySet());
+        
+        super.log("→ Enviando USER_SNAPSHOT a "
+              + ph + " : " + (users.isEmpty() ? "(vacío)" : users));
+        
         String id = UUID.randomUUID().toString();
         String frame = "PEER_MSG:" + id + ":" + serverId + ":USER_SNAPSHOT:" + users;
         ph.sendPeerMessage(frame);
@@ -417,6 +429,7 @@ public class ClusteredChatServer extends ChatServer {
 
         if (ui == null || ui.requestPeerApproval(peerId)) {
             registerPeer(peerId, ph);
+            sendSnapshotToPeer(ph); 
             ph.sendPeerMessage("PEER_MSG:" + UUID.randomUUID() + ":" + serverId + ":SERVER_JOIN:" + serverId);
         } else {
             ph.close();
