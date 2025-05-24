@@ -75,14 +75,9 @@ public class ClusteredChatServer extends ChatServer {
         try {
             Socket s = new Socket(info.getHost(), info.getPort());
             PeerHandler ph = new PeerHandler(s, this);
-            registerPeer(info.toString(), ph);
             new Thread(ph).start();
             ph.hello(serverId);
             super.log("Conectado (saliente) a peer " + info);
-            updateServerStatus(info.toString(), "CONNECTED");
-            broadcastServerStatus();
-            syncFilesWithPeer(ph);
-            syncUsersWithPeer(ph);
         } catch (Exception ex) {
             super.log("No se pudo conectar con peer " + info + ": " + ex.getMessage());
             updateServerStatus(info.toString(), "DISCONNECTED");
@@ -341,14 +336,14 @@ public class ClusteredChatServer extends ChatServer {
                 super.log("Estado de servidores actualizado: " + serverStatus);
                 break;
             case "SERVER_JOIN":
-                serverStatus.put(payload, "CONNECTED");
-                serverFiles.computeIfAbsent(payload, k -> new HashSet<>());
-                remoteUserDetails.computeIfAbsent(payload, k -> new HashMap<>());
-                if (ui != null) {
-                    ui.updateServerStatus(new ArrayList<>(serverStatus.entrySet()));
+                if (!serverStatus.containsKey(payload)) {
+                    serverStatus.put(payload, "CONNECTED");
+                    serverFiles        .computeIfAbsent(payload, k -> new HashSet<>());
+                    remoteUserDetails  .computeIfAbsent(payload, k -> new HashMap<>());
+                    if (ui != null) ui.updateServerStatus(
+                             new ArrayList<>(serverStatus.entrySet()));
+                    super.log("Servidor se unió: " + payload);
                 }
-                super.log("Servidor se unió: " + payload);
-                broadcastToPeers("SERVER_JOIN:" + payload);
                 break;
         }
     }
@@ -416,11 +411,17 @@ public class ClusteredChatServer extends ChatServer {
     }
     
     void onHello(String peerId, PeerHandler ph) {
+        // Elimina cualquier entrada provisional como "/192.168.1.10:6000"
+        serverStatus.remove(ph.toString());
+        serverFiles.remove(ph.toString());
+        remoteUserDetails.remove(ph.toString());
+
+        // Verifica si se acepta la conexión desde la UI
         if (ui == null || ui.requestPeerApproval(peerId)) {
-            registerPeer(peerId, ph);  // ya actualiza status y hace broadcast
-            ph.sendPeerMessage("PEER_MSG:"+UUID.randomUUID()+":"+serverId+":SERVER_JOIN:"+serverId);
+            registerPeer(peerId, ph);  // registra correctamente con el nombre del servidor
+            ph.sendPeerMessage("PEER_MSG:" + UUID.randomUUID() + ":" + serverId + ":SERVER_JOIN:" + serverId);
         } else {
-            ph.close();                // método que cierra socket y cleanup
+            ph.close();  // cierra la conexión si se rechaza
         }
     }
     
