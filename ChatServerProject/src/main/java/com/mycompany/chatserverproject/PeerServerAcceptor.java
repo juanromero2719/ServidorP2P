@@ -21,11 +21,6 @@ class PeerServerAcceptor implements Runnable {
             while (true) {
                 Socket s = ss.accept();
                 PeerHandler ph = new PeerHandler(s, server);
-
-                /* usamos la dirección remota como clave temporal hasta recibir HELLO */
-                String key = s.getRemoteSocketAddress().toString();
-                server.registerPeer(key, ph);
-
                 new Thread(ph).start();
             }
         } catch (IOException e) {

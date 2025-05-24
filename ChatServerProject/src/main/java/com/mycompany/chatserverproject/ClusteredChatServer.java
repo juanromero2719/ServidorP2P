@@ -411,19 +411,18 @@ public class ClusteredChatServer extends ChatServer {
     }
     
     void onHello(String peerId, PeerHandler ph) {
-        // Elimina cualquier entrada provisional como "/192.168.1.10:6000"
         serverStatus.remove(ph.toString());
         serverFiles.remove(ph.toString());
         remoteUserDetails.remove(ph.toString());
 
-        // Verifica si se acepta la conexión desde la UI
         if (ui == null || ui.requestPeerApproval(peerId)) {
-            registerPeer(peerId, ph);  // registra correctamente con el nombre del servidor
+            registerPeer(peerId, ph);
             ph.sendPeerMessage("PEER_MSG:" + UUID.randomUUID() + ":" + serverId + ":SERVER_JOIN:" + serverId);
         } else {
-            ph.close();  // cierra la conexión si se rechaza
+            ph.close();
         }
     }
+    
     
     public String getServerId() {
         return serverId;
