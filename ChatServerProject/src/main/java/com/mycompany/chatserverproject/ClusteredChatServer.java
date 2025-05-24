@@ -272,23 +272,28 @@ public class ClusteredChatServer extends ChatServer {
                 String[] cc = payload.split(":", 2);
                 if (cc.length == 2) super.createChannel(cc[0], cc[1]);
                 break;
-            case "USER_SNAPSHOT":
-                Set<String> snapshot = payload.isEmpty()
-                    ? Collections.emptySet()
-                    : new HashSet<>(Arrays.asList(payload.split(",")));
+            case "USER_SNAPSHOT": {
+                //  log útil para depuración
+                super.log("← USER_SNAPSHOT recibido de " + src + " : " + payload);
 
-                super.log("← USER_SNAPSHOT recibido de " + src + " : "
-                          + (snapshot.isEmpty() ? "(vacío)" : String.join(",", snapshot)));
-
-                // Sustituye cualquier listado anterior proveniente de ese servidor
-                remoteUsers.removeIf(u -> u.endsWith("@" + src));
-                for (String u : snapshot) {
-                    remoteUsers.add(u + "@" + src);
+                /* añadimos solo los que aún no tenemos */
+                boolean nuevos = false;
+                if (!payload.isEmpty() && !payload.equals("none")) {
+                    for (String u : payload.split(",")) {
+                        if (remoteUsers.add(u + "@" + src)) {   // true si es NUEVO
+                            nuevos = true;
+                        }
+                    }
                 }
-
                 ui.updateOnlineUsers(getAllUsers());
                 sendOnlineUsersToAll();
+
+                /* si aprendimos algo nuevo le devolvemos nuestro snapshot una sola vez */
+                if (nuevos && activePeers.containsKey(src)) {
+                    sendSnapshotToPeer(activePeers.get(src));
+                }
                 break;
+            }
             case "USER_DB_SYNC":
                 Map<String, String> userDetails = remoteUserDetails.computeIfAbsent(src, k -> new HashMap<>());
                 userDetails.clear();
@@ -423,17 +428,18 @@ public class ClusteredChatServer extends ChatServer {
     }
     
     void onHello(String peerId, PeerHandler ph) {
-        serverStatus.remove(ph.toString());
-        serverFiles.remove(ph.toString());
-        remoteUserDetails.remove(ph.toString());
-
-        if (ui == null || ui.requestPeerApproval(peerId)) {
-            registerPeer(peerId, ph);
-            sendSnapshotToPeer(ph); 
-            ph.sendPeerMessage("PEER_MSG:" + UUID.randomUUID() + ":" + serverId + ":SERVER_JOIN:" + serverId);
+    if (activePeers.containsKey(peerId)) {
+        if (serverId.compareTo(peerId) < 0) {
+            ph.close();     // yo mantengo mi conexión, cierro la duplicada
+            return;
         } else {
-            ph.close();
+            activePeers.get(peerId).close();  // cierro la anterior y la reemplazo
         }
+    }
+
+        registerPeer(peerId, ph);
+        sendSnapshotToPeer(ph);
+        ph.sendPeerMessage("PEER_MSG:" + UUID.randomUUID() + ":" + serverId + ":SERVER_JOIN:" + serverId);
     }
     
     
