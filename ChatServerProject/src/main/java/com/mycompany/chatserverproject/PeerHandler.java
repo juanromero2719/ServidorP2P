@@ -39,7 +39,7 @@ class PeerHandler implements Runnable {
                 String decoded = crypto.decrypt(line);
                 if (decoded.startsWith("HELLO:")) {
                     peerId = decoded.substring(6);
-                    server.afterHello(this);
+                    server.onHello(peerId, this);
                     continue;
                 }
                 server.handlePeerMessage(decoded);
@@ -62,4 +62,6 @@ class PeerHandler implements Runnable {
     public String toString() {
         return peerId;
     }
+    
+    void close() { stop(); }
 }

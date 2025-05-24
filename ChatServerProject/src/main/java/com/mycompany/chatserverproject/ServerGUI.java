@@ -35,13 +35,32 @@ public class ServerGUI implements ServerUI {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1000, 600);
 
-        /* ---------- CABECERA CON IP Y PUERTOS ---------- */
+        /* ---------- TOOLBAR CON BOTÓN ---------- */
+        JToolBar toolbar = new JToolBar();
+        toolbar.setFloatable(false);
+
+        JButton peerBtn = new JButton("Conectar servidor…");
+        peerBtn.addActionListener(e -> {
+            PeerConnectDialog dlg = new PeerConnectDialog(frame);
+            if (dlg.isAccepted() && server instanceof ClusteredChatServer) {
+                ((ClusteredChatServer) server)
+                        .connectToPeer(dlg.getHost(), dlg.getPort());
+            }
+        });
+        toolbar.add(peerBtn);
+
+        /* ---------- PANEL DE INFORMACIÓN ---------- */
         JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         infoPanel.setBorder(BorderFactory.createEtchedBorder());
         infoPanel.add(new JLabel("IP: " + ip));
         infoPanel.add(new JLabel("|  Puerto Clientes: " + clientPort));
         infoPanel.add(new JLabel("|  Puerto Servidores: " + peerPort));
-        frame.getContentPane().add(infoPanel, BorderLayout.NORTH);
+
+        // Combina toolbar e infoPanel en un solo panel superior
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.add(toolbar, BorderLayout.NORTH);
+        topPanel.add(infoPanel, BorderLayout.SOUTH);
+        frame.getContentPane().add(topPanel, BorderLayout.NORTH);
 
         /* ---------- PANEL IZQUIERDO (Usuarios / Servidores) ---------- */
         usersModel = new DefaultListModel<>();
@@ -139,5 +158,14 @@ public class ServerGUI implements ServerUI {
                 serversModel.addElement(status.getKey() + " (" + status.getValue() + ")");
             }
         });
+    }
+    
+    // implementación del nuevo método
+    @Override
+    public boolean requestPeerApproval(String peerId) {
+        int res = JOptionPane.showConfirmDialog(frame,
+            "El servidor «"+peerId+"» solicita conectarse.\n¿Aceptar?",
+            "Nueva conexión P2P", JOptionPane.YES_NO_OPTION);
+        return res == JOptionPane.YES_OPTION;
     }
 }

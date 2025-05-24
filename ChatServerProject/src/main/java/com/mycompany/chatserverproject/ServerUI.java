@@ -8,4 +8,5 @@ public interface ServerUI {
     void initUI(Runnable reportAction);
     void updateOnlineUsers(List<String> users);
     void updateServerStatus(List<Map.Entry<String, String>> statuses);
+    boolean requestPeerApproval(String peerId);
 }

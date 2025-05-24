@@ -69,6 +69,25 @@ public class ClusteredChatServer extends ChatServer {
             }
         }
     }
+    
+    private void tryConnectSinglePeer(PeerInfo info) {
+        if (activePeers.containsKey(info.toString())) return;
+        try {
+            Socket s = new Socket(info.getHost(), info.getPort());
+            PeerHandler ph = new PeerHandler(s, this);
+            registerPeer(info.toString(), ph);
+            new Thread(ph).start();
+            ph.hello(serverId);
+            super.log("Conectado (saliente) a peer " + info);
+            updateServerStatus(info.toString(), "CONNECTED");
+            broadcastServerStatus();
+            syncFilesWithPeer(ph);
+            syncUsersWithPeer(ph);
+        } catch (Exception ex) {
+            super.log("No se pudo conectar con peer " + info + ": " + ex.getMessage());
+            updateServerStatus(info.toString(), "DISCONNECTED");
+        }
+    }
 
     void registerPeer(String key, PeerHandler ph) {
         activePeers.put(key, ph);
@@ -392,8 +411,27 @@ public class ClusteredChatServer extends ChatServer {
         ph.sendPeerMessage("PEER_MSG:" + UUID.randomUUID().toString() + ":" + serverId + ":SERVER_JOIN:" + serverId);
     }
 
-    public void afterHello(PeerHandler ph) {
-        registerPeer(ph.toString(), ph);
-        sendSnapshotToPeer(ph);
+//    public void afterHello(PeerHandler ph) {
+//        registerPeer(ph.toString(), ph);
+//        sendSnapshotToPeer(ph);
+//    }
+    
+//    public void connectToPeer(String host,int port) {
+//        PeerInfo info = new PeerInfo(host, port);
+//        if (activePeers.containsKey(info.toString())) return;
+//        tryConnectSinglePeer(info);   // extraído de tryConnectToPeers()
+//    }
+    
+    public void connectToPeer(String host, int port) {
+        tryConnectSinglePeer(new PeerInfo(host, port));
+    }
+    
+    void onHello(String peerId, PeerHandler ph) {
+        if (ui == null || ui.requestPeerApproval(peerId)) {
+            registerPeer(peerId, ph);  // ya actualiza status y hace broadcast
+            ph.sendPeerMessage("PEER_MSG:"+UUID.randomUUID()+":"+serverId+":SERVER_JOIN:"+serverId);
+        } else {
+            ph.close();                // método que cierra socket y cleanup
+        }
     }
 }
