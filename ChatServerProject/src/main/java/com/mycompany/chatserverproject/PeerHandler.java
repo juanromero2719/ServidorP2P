@@ -37,11 +37,18 @@ class PeerHandler implements Runnable {
             String line;
             while ((line = in.readLine()) != null) {
                 String decoded = crypto.decrypt(line);
+
                 if (decoded.startsWith("HELLO:")) {
+                    // id del peer que acaba de hablar
                     peerId = decoded.substring(6);
-                    server.onHello(peerId, this);
+
+                    /*  NUEVO  →  responde con tu HELLO ­solo si aún no lo hiciste   */
+                    sendRaw("HELLO:" + server.getServerId());
+
+                    server.onHello(peerId, this);   // registra y procesa snapshot
                     continue;
                 }
+
                 server.handlePeerMessage(decoded);
             }
         } catch (IOException ignored) {
