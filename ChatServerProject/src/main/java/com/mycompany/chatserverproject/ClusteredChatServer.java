@@ -48,6 +48,8 @@ public class ClusteredChatServer extends ChatServer {
 //        );
         super.start();
     }
+    
+    
 
     private void tryConnectToPeers() {
         for (PeerInfo info : peersToConnect) {
@@ -76,13 +78,15 @@ public class ClusteredChatServer extends ChatServer {
             Socket s = new Socket(info.getHost(), info.getPort());
             PeerHandler ph = new PeerHandler(s, this);
             new Thread(ph).start();
-            ph.hello(serverId);
-            super.log("Conectado (saliente) a peer " + info);
+            ph.hello(serverId);          // saludo
+            sendSnapshotToPeer(ph);      // << SOLO AQUÍ >>
+            log("Conectado (saliente) a peer " + info);
         } catch (Exception ex) {
-            super.log("No se pudo conectar con peer " + info + ": " + ex.getMessage());
+            log("No se pudo conectar con peer " + info + ": " + ex.getMessage());
             updateServerStatus(info.toString(), "DISCONNECTED");
         }
     }
+
 
     void registerPeer(String key, PeerHandler ph) {
         activePeers.put(key, ph);
@@ -272,28 +276,17 @@ public class ClusteredChatServer extends ChatServer {
                 String[] cc = payload.split(":", 2);
                 if (cc.length == 2) super.createChannel(cc[0], cc[1]);
                 break;
-            case "USER_SNAPSHOT": {
-                //  log útil para depuración
-                super.log("← USER_SNAPSHOT recibido de " + src + " : " + payload);
+            case "USER_SNAPSHOT":
+                log("← USER_SNAPSHOT recibido de " + src + " : " + payload);
 
-                /* añadimos solo los que aún no tenemos */
-                boolean nuevos = false;
-                if (!payload.isEmpty() && !payload.equals("none")) {
+                if (!payload.isEmpty() && !"none".equals(payload)) {
                     for (String u : payload.split(",")) {
-                        if (remoteUsers.add(u + "@" + src)) {   // true si es NUEVO
-                            nuevos = true;
-                        }
+                        remoteUsers.add(u + "@" + src);
                     }
                 }
                 ui.updateOnlineUsers(getAllUsers());
                 sendOnlineUsersToAll();
-
-                /* si aprendimos algo nuevo le devolvemos nuestro snapshot una sola vez */
-                if (nuevos && activePeers.containsKey(src)) {
-                    sendSnapshotToPeer(activePeers.get(src));
-                }
                 break;
-            }
             case "USER_DB_SYNC":
                 Map<String, String> userDetails = remoteUserDetails.computeIfAbsent(src, k -> new HashMap<>());
                 userDetails.clear();
@@ -415,31 +408,34 @@ public class ClusteredChatServer extends ChatServer {
         super.log("→ Enviando USER_SNAPSHOT a "
               + ph + " : " + (users.isEmpty() ? "(vacío)" : users));
         
+        System.out.println("→ Enviando USER_SNAPSHOT a "+ph+" : "+users);
+
         String id = UUID.randomUUID().toString();
         String frame = "PEER_MSG:" + id + ":" + serverId + ":USER_SNAPSHOT:" + users;
         ph.sendPeerMessage(frame);
         syncFilesWithPeer(ph);
         syncUsersWithPeer(ph);
         ph.sendPeerMessage("PEER_MSG:" + UUID.randomUUID().toString() + ":" + serverId + ":SERVER_JOIN:" + serverId);
+        
+
     }
   
     public void connectToPeer(String host, int port) {
         tryConnectSinglePeer(new PeerInfo(host, port));
     }
-    
+        
     void onHello(String peerId, PeerHandler ph) {
-    if (activePeers.containsKey(peerId)) {
-        if (serverId.compareTo(peerId) < 0) {
-            ph.close();     // yo mantengo mi conexión, cierro la duplicada
-            return;
-        } else {
-            activePeers.get(peerId).close();  // cierro la anterior y la reemplazo
-        }
-    }
+        // Limpia entradas temporales si existían
+        serverStatus.remove(ph.toString());
+        activePeers.remove(ph.toString());
 
-        registerPeer(peerId, ph);
-        sendSnapshotToPeer(ph);
-        ph.sendPeerMessage("PEER_MSG:" + UUID.randomUUID() + ":" + serverId + ":SERVER_JOIN:" + serverId);
+        // Acepta manualmente o automáticamente según haya GUI
+        if (ui == null || ui.requestPeerApproval(peerId)) {
+            registerPeer(peerId, ph);
+            // No se envía USER_SNAPSHOT ni SERVER_JOIN aquí
+        } else {
+            ph.close();
+        }
     }
     
     

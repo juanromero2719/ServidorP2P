@@ -21,10 +21,12 @@ class PeerServerAcceptor implements Runnable {
             while (true) {
                 Socket s = ss.accept();
                 PeerHandler ph = new PeerHandler(s, server);
-                new Thread(ph).start();
+                new Thread(ph).start();          // esperamos HELLO
             }
         } catch (IOException e) {
             System.out.println("PeerServerAcceptor error: " + e.getMessage());
         }
     }
+
+    
 }
